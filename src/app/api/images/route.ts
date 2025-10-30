@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { AuthService } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { writeFile, mkdir } from 'fs/promises'
@@ -25,8 +24,8 @@ const querySchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const user = AuthService.verifyToken(request)
+    if (!user) {
       return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
     }
 
@@ -158,8 +157,8 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const user = AuthService.verifyToken(request)
+    if (!user) {
       return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
     }
 

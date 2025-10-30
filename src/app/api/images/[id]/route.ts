@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { AuthService } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { unlink } from 'fs/promises'
@@ -19,8 +18,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const user = AuthService.verifyToken(request)
+    if (!user) {
       return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
     }
 
@@ -81,8 +80,8 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const user = AuthService.verifyToken(request)
+    if (!user) {
       return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
     }
 
@@ -166,8 +165,8 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const user = AuthService.verifyToken(request)
+    if (!user) {
       return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
     }
 
