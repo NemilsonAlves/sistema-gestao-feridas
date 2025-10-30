@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { AuthService } from '@/lib/auth'
 import { z } from 'zod'
 
 // Schema de validação para atualização de tratamento
@@ -24,7 +24,7 @@ export async function GET(
 ) {
   try {
     // Verificar autenticação
-    const user = await verifyToken(request)
+    const user = await AuthService.verifyToken(request)
     if (!user) {
       return NextResponse.json(
         { message: 'Token inválido ou expirado' },
@@ -91,7 +91,7 @@ export async function PUT(
 ) {
   try {
     // Verificar autenticação
-    const user = await verifyToken(request)
+    const user = await AuthService.verifyToken(request)
     if (!user) {
       return NextResponse.json(
         { message: 'Token inválido ou expirado' },
@@ -208,7 +208,7 @@ export async function DELETE(
 ) {
   try {
     // Verificar autenticação
-    const user = await verifyToken(request)
+    const user = await AuthService.verifyToken(request)
     if (!user) {
       return NextResponse.json(
         { message: 'Token inválido ou expirado' },
