@@ -128,3 +128,6 @@ export function checkPermissions(userRole: UserRole, requiredPermissions: string
   const userPermissions = ROLE_PERMISSIONS[userRole] || []
   return requiredPermissions.every(permission => userPermissions.includes(permission))
 }
+
+// Exportação da função verifyToken para compatibilidade
+export const verifyToken = AuthService.verifyToken
