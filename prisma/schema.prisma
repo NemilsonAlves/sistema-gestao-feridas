@@ -1,0 +1,374 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// Enums
+enum UserRole {
+  ADMIN
+  MEDICO
+  ENFERMEIRO
+  NUTRICIONISTA
+  FISIOTERAPEUTA
+  APOIO
+  PACIENTE
+}
+
+enum PatientStatus {
+  ATIVO
+  ALTA
+  OBITO
+  TRANSFERIDO
+}
+
+enum WoundType {
+  ULCERA_PRESSAO
+  ULCERA_DIABETICA
+  FERIDA_CIRURGICA
+  QUEIMADURA
+  LESAO_FRICCAO
+  OUTRAS
+}
+
+enum WoundStage {
+  ESTAGIO_I
+  ESTAGIO_II
+  ESTAGIO_III
+  ESTAGIO_IV
+}
+
+enum WoundStatus {
+  CICATRIZANDO
+  ESTAVEL
+  DETERIORANDO
+  INFECTADA
+}
+
+enum TissueType {
+  GRANULACAO
+  NECROSE
+  FIBRINA
+  EPITELIZACAO
+}
+
+enum Priority {
+  BAIXA
+  MEDIA
+  ALTA
+  URGENTE
+}
+
+enum AppointmentStatus {
+  AGENDADO
+  CONFIRMADO
+  REALIZADO
+  CANCELADO
+  FALTOU
+}
+
+// Models
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Dados profissionais
+  registroProfissional String? // CRM, COREN, etc.
+  especialidade        String?
+  telefone             String?
+
+  // Relacionamentos
+  patientsAsResponsible Patient[]        @relation("ResponsibleProfessional")
+  evolutions            Evolution[]
+  appointments          Appointment[]
+  treatments            Treatment[]
+  telemedicineChats     TelemedicineChat[]
+
+  @@map("users")
+}
+
+model Patient {
+  id        String        @id @default(cuid())
+  name      String
+  cpf       String        @unique
+  cns       String?       // Cartão Nacional de Saúde
+  birthDate DateTime
+  gender    String
+  status    PatientStatus @default(ATIVO)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  // Dados clínicos
+  bloodType     String?
+  allergies     String? // Separadas por vírgula
+  comorbidities String? // Separadas por vírgula
+  mobility      String?
+  consciousness String?
+
+  // Dados de contato
+  phone    String?
+  email    String?
+  address  String?
+  city     String?
+  state    String?
+  zipCode  String?
+
+  // Dados de emergência
+  emergencyContact      String?
+  emergencyContactPhone String?
+
+  // Relacionamentos
+  responsibleId String?
+  responsible   User?   @relation("ResponsibleProfessional", fields: [responsibleId], references: [id])
+
+  wounds            Wound[]
+  evolutions        Evolution[]
+  appointments      Appointment[]
+  treatments        Treatment[]
+  telemedicineChats TelemedicineChat[]
+  riskAssessments   RiskAssessment[]
+
+  @@map("patients")
+}
+
+model Wound {
+  id        String      @id @default(cuid())
+  patientId String
+  type      WoundType
+  stage     WoundStage?
+  status    WoundStatus @default(ESTAVEL)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  // Localização anatômica
+  anatomicalRegion String
+  laterality       String? // Direita, Esquerda, Bilateral
+
+  // Características da ferida
+  length Float? // cm
+  width  Float? // cm
+  depth  Float? // cm
+  area   Float? // cm²
+
+  // Tecidos presentes (percentuais)
+  granulationPercentage   Float? @default(0)
+  necrosisPercentage      Float? @default(0)
+  fibrinPercentage        Float? @default(0)
+  epithelializationPercentage Float? @default(0)
+
+  // Características das bordas
+  borderType        String? // Definidas, Irregulares, Maceradas
+  perilesionalSkin  String? // Íntegra, Eritematosa, Edemaciada
+
+  // Exsudato
+  exudateAmount String? // Ausente, Pouco, Moderado, Abundante
+  exudateColor  String?
+  exudateOdor   String?
+
+  // Dor
+  painScale Int? // 0-10
+
+  // Sinais de infecção
+  hasInfectionSigns Boolean @default(false)
+  infectionSigns    String? // Separados por vírgula
+
+  // Relacionamentos
+  patient     Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  images      WoundImage[]
+  treatments  Treatment[]
+  evolutions  Evolution[]
+
+  @@map("wounds")
+}
+
+model WoundImage {
+  id        String   @id @default(cuid())
+  woundId   String
+  url       String
+  filename  String
+  createdAt DateTime @default(now())
+
+  // Metadados da imagem
+  description String?
+  annotations Json? // Anotações e medições na imagem
+
+  // Relacionamentos
+  wound Wound @relation(fields: [woundId], references: [id], onDelete: Cascade)
+
+  @@map("wound_images")
+}
+
+model Treatment {
+  id        String   @id @default(cuid())
+  patientId String
+  woundId   String?
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Detalhes do tratamento
+  protocol        String
+  dressing        String
+  frequency       String
+  technique       String
+  materials       String? // Separados por vírgula
+  observations    String?
+  nextChangeDate  DateTime?
+
+  // Desbridamento
+  debridementType String?
+  debridementDate DateTime?
+
+  // Relacionamentos
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  wound   Wound?  @relation(fields: [woundId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@map("treatments")
+}
+
+model Evolution {
+  id        String   @id @default(cuid())
+  patientId String
+  woundId   String?
+  userId    String
+  createdAt DateTime @default(now())
+
+  // Tipo de evolução
+  type String // Médica, Enfermagem, Nutrição, Fisioterapia
+
+  // Conteúdo da evolução
+  description String
+  observations String?
+
+  // Avaliação objetiva
+  vitalSigns Json? // Pressão, temperatura, etc.
+  
+  // Relacionamentos
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  wound   Wound?  @relation(fields: [woundId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@map("evolutions")
+}
+
+model Appointment {
+  id        String            @id @default(cuid())
+  patientId String
+  userId    String
+  status    AppointmentStatus @default(AGENDADO)
+  priority  Priority          @default(MEDIA)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  // Detalhes do agendamento
+  scheduledDate DateTime
+  duration      Int      @default(30) // minutos
+  type          String   // Curativo, Consulta, Procedimento
+  description   String?
+  observations  String?
+
+  // Relacionamentos
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@map("appointments")
+}
+
+model RiskAssessment {
+  id        String   @id @default(cuid())
+  patientId String
+  createdAt DateTime @default(now())
+
+  // Escala de Braden
+  sensoryPerception Int // 1-4
+  moisture          Int // 1-4
+  activity          Int // 1-4
+  mobility          Int // 1-4
+  nutrition         Int // 1-4
+  frictionShear     Int // 1-3
+  totalScore        Int // 6-23
+
+  // Classificação de risco
+  riskLevel String // Muito Alto, Alto, Moderado, Baixo
+
+  // Relacionamentos
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("risk_assessments")
+}
+
+model TelemedicineChat {
+  id        String   @id @default(cuid())
+  patientId String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Status do chat
+  isActive Boolean @default(true)
+  
+  // Relacionamentos
+  patient  Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  user     User                @relation(fields: [userId], references: [id])
+  messages TelemedicineMessage[]
+
+  @@map("telemedicine_chats")
+}
+
+model TelemedicineMessage {
+  id     String   @id @default(cuid())
+  chatId String
+  senderId String
+  createdAt DateTime @default(now())
+
+  // Conteúdo da mensagem
+  content String
+  type    String @default("text") // text, image, video, audio
+  fileUrl String?
+
+  // Relacionamentos
+  chat TelemedicineChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@map("telemedicine_messages")
+}
+
+model Inventory {
+  id        String   @id @default(cuid())
+  name      String
+  category  String
+  quantity  Int
+  minStock  Int
+  unitPrice Float?
+  supplier  String?
+  expiryDate DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("inventory")
+}
+
+model Protocol {
+  id          String   @id @default(cuid())
+  name        String
+  woundType   WoundType
+  description String
+  steps       Json // Array de passos do protocolo
+  materials   String? // Separados por vírgula
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("protocols")
+}
