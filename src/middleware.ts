@@ -23,6 +23,13 @@ export function middleware(request: NextRequest) {
     '/api/reports',
     '/api/telemedicine',
     '/api/users',
+    '/api/images',
+  ]
+
+  // Rotas especiais que precisam de autenticação mas têm tratamento diferente
+  const specialAuthRoutes = [
+    '/api/auth/me',
+    '/api/auth/logout',
   ]
 
   // Rotas do dashboard que precisam de autenticação
@@ -45,13 +52,14 @@ export function middleware(request: NextRequest) {
   // Verificar se é uma rota protegida
   const isProtectedApi = protectedApiRoutes.some(route => pathname.startsWith(route))
   const isProtectedDashboard = protectedDashboardRoutes.some(route => pathname.startsWith(route))
+  const isSpecialAuthRoute = specialAuthRoutes.some(route => pathname.startsWith(route))
 
-  if (isProtectedApi || isProtectedDashboard) {
+  if (isProtectedApi || isProtectedDashboard || isSpecialAuthRoute) {
     const token = request.cookies.get('auth-token')?.value || 
                   request.headers.get('authorization')?.replace('Bearer ', '')
 
     if (!token) {
-      if (isProtectedApi) {
+      if (isProtectedApi || isSpecialAuthRoute) {
         return NextResponse.json(
           { error: 'Token de acesso requerido' },
           { status: 401 }
@@ -63,7 +71,7 @@ export function middleware(request: NextRequest) {
 
     const payload = AuthService.verifyToken(token)
     if (!payload) {
-      if (isProtectedApi) {
+      if (isProtectedApi || isSpecialAuthRoute) {
         return NextResponse.json(
           { error: 'Token inválido ou expirado' },
           { status: 401 }
