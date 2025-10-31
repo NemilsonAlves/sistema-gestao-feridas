@@ -6,19 +6,19 @@ import { useAuth } from '@/contexts/AuthContext'
 
 export default function Home() {
   const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, isLoading } = useAuth()
 
   useEffect(() => {
-    if (!loading) {
+    if (!isLoading) {
       if (user) {
         router.push('/dashboard')
       } else {
         router.push('/login')
       }
     }
-  }, [user, loading, router])
+  }, [user, isLoading, router])
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-medical-50 to-medical-100">
         <div className="text-center">
