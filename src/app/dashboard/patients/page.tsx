@@ -81,8 +81,8 @@ export default function PatientsPage() {
     fetchPatients(currentPage, debouncedSearch)
   }, [currentPage, debouncedSearch])
 
-  const handleSearch = (value: string) => {
-    setSearch(value)
+  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
     setCurrentPage(1)
   }
 
