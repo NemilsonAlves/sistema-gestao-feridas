@@ -13,7 +13,7 @@ const updateSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const userId = request.headers.get('x-user-id')
@@ -21,7 +21,7 @@ export async function GET(
       return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
     }
 
-    const resolvedParams = await params
+    const resolvedParams = await context.params
     const imageId = resolvedParams.id
 
     if (!imageId) {
@@ -68,7 +68,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const userId = request.headers.get('x-user-id')
@@ -76,7 +76,7 @@ export async function PUT(
       return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
     }
 
-    const resolvedParams = await params
+    const resolvedParams = await context.params
     const imageId = resolvedParams.id
 
     if (!imageId) {
@@ -143,7 +143,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const userId = request.headers.get('x-user-id')
@@ -151,7 +151,7 @@ export async function DELETE(
       return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
     }
 
-    const resolvedParams = await params
+    const resolvedParams = await context.params
     const imageId = resolvedParams.id
 
     if (!imageId) {
