@@ -5,40 +5,22 @@ import { prisma } from '@/lib/prisma'
 // Schema de validação para atualização de ferida
 const updateWoundSchema = z.object({
   location: z.string().min(1, 'Localização da ferida é obrigatória').optional(),
-  type: z.enum(['PRESSURE_ULCER', 'DIABETIC_ULCER', 'VENOUS_ULCER', 'ARTERIAL_ULCER', 'SURGICAL', 'TRAUMATIC', 'OTHER'], {
-    errorMap: () => ({ message: 'Tipo de ferida inválido' })
-  }).optional(),
-  stage: z.enum(['STAGE_1', 'STAGE_2', 'STAGE_3', 'STAGE_4', 'UNSTAGEABLE', 'SUSPECTED_DTI'], {
-    errorMap: () => ({ message: 'Estágio da ferida inválido' })
-  }).optional(),
-  status: z.enum(['ACTIVE', 'HEALING', 'HEALED', 'INFECTED'], {
-    errorMap: () => ({ message: 'Status da ferida inválido' })
-  }).optional(),
+  type: z.enum(['ULCERA_PRESSAO', 'ULCERA_DIABETICA', 'FERIDA_CIRURGICA', 'QUEIMADURA', 'LESAO_FRICCAO', 'OUTRAS']).optional(),
+  stage: z.enum(['ESTAGIO_I', 'ESTAGIO_II', 'ESTAGIO_III', 'ESTAGIO_IV']).optional(),
+  status: z.enum(['CICATRIZANDO', 'ESTAVEL', 'DETERIORANDO', 'INFECTADA']).optional(),
   length: z.number().positive('Comprimento deve ser positivo').optional(),
   width: z.number().positive('Largura deve ser positiva').optional(),
   depth: z.number().positive('Profundidade deve ser positiva').optional(),
   area: z.number().positive('Área deve ser positiva').optional(),
-  tissueType: z.enum(['GRANULATION', 'EPITHELIAL', 'SLOUGH', 'NECROTIC', 'MIXED'], {
-    errorMap: () => ({ message: 'Tipo de tecido inválido' })
-  }).optional(),
-  exudate: z.enum(['NONE', 'MINIMAL', 'MODERATE', 'HEAVY'], {
-    errorMap: () => ({ message: 'Quantidade de exsudato inválida' })
-  }).optional(),
-  exudateType: z.enum(['SEROUS', 'SANGUINEOUS', 'SEROSANGUINEOUS', 'PURULENT'], {
-    errorMap: () => ({ message: 'Tipo de exsudato inválido' })
-  }).optional(),
-  odor: z.enum(['NONE', 'MILD', 'MODERATE', 'STRONG'], {
-    errorMap: () => ({ message: 'Intensidade do odor inválida' })
-  }).optional(),
+  tissueType: z.enum(['GRANULACAO', 'NECROSE', 'FIBRINA', 'EPITELIZACAO']).optional(),
+  exudate: z.enum(['NONE', 'MINIMAL', 'MODERATE', 'HEAVY']).optional(),
+  exudateType: z.enum(['SEROUS', 'SANGUINEOUS', 'SEROSANGUINEOUS', 'PURULENT']).optional(),
+  odor: z.enum(['NONE', 'MILD', 'MODERATE', 'STRONG']).optional(),
   pain: z.number().min(0).max(10, 'Dor deve estar entre 0 e 10').optional(),
   edema: z.boolean().optional(),
   infection: z.boolean().optional(),
-  temperature: z.enum(['NORMAL', 'WARM', 'HOT', 'COOL'], {
-    errorMap: () => ({ message: 'Temperatura inválida' })
-  }).optional(),
-  periwoundSkin: z.enum(['INTACT', 'MACERATED', 'EXCORIATED', 'INDURATED', 'ERYTHEMATOUS'], {
-    errorMap: () => ({ message: 'Condição da pele perilesional inválida' })
-  }).optional(),
+  temperature: z.enum(['NORMAL', 'WARM', 'HOT', 'COOL']).optional(),
+  periwoundSkin: z.enum(['INTACT', 'MACERATED', 'EXCORIATED', 'INDURATED', 'ERYTHEMATOUS']).optional(),
   description: z.string().optional(),
   riskFactors: z.string().optional(),
   previousTreatments: z.string().optional(),
@@ -47,11 +29,12 @@ const updateWoundSchema = z.object({
 // GET - Buscar ferida específica
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params
     const wound = await prisma.wound.findUnique({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
       include: {
         patient: {
           select: {
@@ -60,21 +43,13 @@ export async function GET(
             cpf: true,
             birthDate: true,
             gender: true,
-            isActive: true,
-          }
-        },
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            role: true,
           }
         },
         treatments: {
           orderBy: { createdAt: 'desc' },
           take: 5,
           include: {
-            createdBy: {
+            user: {
               select: {
                 id: true,
                 name: true,
@@ -86,14 +61,6 @@ export async function GET(
         images: {
           orderBy: { createdAt: 'desc' },
           take: 10,
-          include: {
-            createdBy: {
-              select: {
-                id: true,
-                name: true,
-              }
-            }
-          }
         },
         _count: {
           select: {
@@ -133,53 +100,47 @@ export async function GET(
 // PUT - Atualizar ferida
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params
     const body = await request.json()
     
     // Validar dados
     const validatedData = updateWoundSchema.parse(body)
-
+    
     // Verificar se a ferida existe
     const existingWound = await prisma.wound.findUnique({
-      where: { id: params.id }
+      where: { id: resolvedParams.id }
     })
 
     if (!existingWound) {
-      return NextResponse.json(
-        { message: 'Ferida não encontrada' },
-        { status: 404 }
-      )
-    }
+       return NextResponse.json(
+         { message: 'Ferida não encontrada' },
+         { status: 404 }
+       )
+     }
 
-    // Calcular área se não fornecida mas temos comprimento e largura
-    let calculatedArea = validatedData.area
-    if (!calculatedArea && validatedData.length && validatedData.width) {
-      calculatedArea = validatedData.length * validatedData.width
-    }
+     // Calcular área se não fornecida mas temos comprimento e largura
+     let calculatedArea = validatedData.area
+     if (!calculatedArea && validatedData.length && validatedData.width) {
+       calculatedArea = validatedData.length * validatedData.width
+     }
 
-    // Atualizar ferida
-    const wound = await prisma.wound.update({
-      where: { id: params.id },
-      data: {
-        ...validatedData,
-        area: calculatedArea,
-        updatedAt: new Date(),
-      },
+     // Atualizar ferida
+     const wound = await prisma.wound.update({
+       where: { id: resolvedParams.id },
+       data: {
+         ...validatedData,
+         area: calculatedArea,
+         updatedAt: new Date(),
+       },
       include: {
         patient: {
           select: {
             id: true,
             name: true,
             cpf: true,
-          }
-        },
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            role: true,
           }
         }
       }
@@ -192,7 +153,7 @@ export async function PUT(
       return NextResponse.json(
         { 
           message: 'Dados inválidos',
-          errors: error.errors.map(err => ({
+          errors: error.issues.map(err => ({
             field: err.path.join('.'),
             message: err.message
           }))
@@ -212,52 +173,50 @@ export async function PUT(
 // DELETE - Excluir ferida (soft delete)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params
+    
     // Verificar se a ferida existe
     const existingWound = await prisma.wound.findUnique({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
       include: {
-        _count: {
-          select: {
-            treatments: true,
-            images: true,
-          }
-        }
+        treatments: true,
+        images: true
       }
     })
 
     if (!existingWound) {
-      return NextResponse.json(
-        { message: 'Ferida não encontrada' },
-        { status: 404 }
-      )
-    }
+       return NextResponse.json(
+         { message: 'Ferida não encontrada' },
+         { status: 404 }
+       )
+     }
 
-    // Verificar se há tratamentos ou imagens associadas
-    if (existingWound._count.treatments > 0 || existingWound._count.images > 0) {
-      return NextResponse.json(
-        { 
-          message: 'Não é possível excluir ferida com tratamentos ou imagens associadas',
-          details: {
-            treatments: existingWound._count.treatments,
-            images: existingWound._count.images
-          }
-        },
-        { status: 400 }
-      )
-    }
+     // Verificar se há tratamentos ou imagens associadas
+     if (existingWound.treatments.length > 0 || existingWound.images.length > 0) {
+       return NextResponse.json(
+         { 
+           message: 'Não é possível excluir ferida com tratamentos ou imagens associadas',
+           details: {
+             treatments: existingWound.treatments.length,
+             images: existingWound.images.length
+           }
+         },
+         { status: 400 }
+       )
+     }
 
-    // Excluir ferida (hard delete se não há dependências)
-    await prisma.wound.delete({
-      where: { id: params.id }
-    })
+     // Excluir ferida (hard delete se não há dependências)
+     await prisma.wound.delete({
+       where: { id: resolvedParams.id }
+     })
 
-    return NextResponse.json(
-      { message: 'Ferida excluída com sucesso' },
-      { status: 200 }
-    )
+     return NextResponse.json(
+       { message: 'Ferida excluída com sucesso' },
+       { status: 200 }
+     )
 
   } catch (error) {
     console.error('Erro ao excluir ferida:', error)

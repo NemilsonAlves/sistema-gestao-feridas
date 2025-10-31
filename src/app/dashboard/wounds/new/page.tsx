@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -41,7 +41,7 @@ interface WoundFormData {
   previousTreatments: string
 }
 
-export default function NewWoundPage() {
+function NewWoundForm() {
   const [formData, setFormData] = useState<WoundFormData>({
     patientId: '',
     location: '',
@@ -575,5 +575,13 @@ export default function NewWoundPage() {
         </form>
       </div>
     </div>
+  )
+}
+
+export default function NewWoundPage() {
+  return (
+    <Suspense fallback={<div>Carregando...</div>}>
+      <NewWoundForm />
+    </Suspense>
   )
 }

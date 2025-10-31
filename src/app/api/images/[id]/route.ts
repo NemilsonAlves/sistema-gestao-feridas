@@ -8,22 +8,21 @@ import { existsSync } from 'fs'
 
 const updateSchema = z.object({
   description: z.string().optional(),
-  capturedAt: z.string().optional(),
-  isBeforeAfter: z.boolean().optional(),
-  beforeAfterType: z.enum(['BEFORE', 'AFTER']).optional()
+  annotations: z.any().optional()
 })
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = AuthService.verifyToken(request)
-    if (!user) {
+    const userId = request.headers.get('x-user-id')
+    if (!userId) {
       return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
     }
 
-    const imageId = params.id
+    const resolvedParams = await params
+    const imageId = resolvedParams.id
 
     if (!imageId) {
       return NextResponse.json({ message: 'ID da imagem é obrigatório' }, { status: 400 })
@@ -35,7 +34,7 @@ export async function GET(
         id: imageId,
         wound: {
           patient: {
-            createdById: session.user.id
+            responsibleId: userId
           }
         }
       },
@@ -49,14 +48,6 @@ export async function GET(
                 cpf: true
               }
             }
-          }
-        },
-        uploadedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true
           }
         }
       }
@@ -77,15 +68,16 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = AuthService.verifyToken(request)
-    if (!user) {
+    const userId = request.headers.get('x-user-id')
+    if (!userId) {
       return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
     }
 
-    const imageId = params.id
+    const resolvedParams = await params
+    const imageId = resolvedParams.id
 
     if (!imageId) {
       return NextResponse.json({ message: 'ID da imagem é obrigatório' }, { status: 400 })
@@ -100,7 +92,7 @@ export async function PUT(
         id: imageId,
         wound: {
           patient: {
-            createdById: session.user.id
+            responsibleId: userId
           }
         }
       }
@@ -115,10 +107,7 @@ export async function PUT(
       where: { id: imageId },
       data: {
         description: validatedData.description,
-        capturedAt: validatedData.capturedAt ? new Date(validatedData.capturedAt) : undefined,
-        isBeforeAfter: validatedData.isBeforeAfter,
-        beforeAfterType: validatedData.beforeAfterType,
-        updatedAt: new Date()
+        annotations: validatedData.annotations
       },
       include: {
         wound: {
@@ -131,14 +120,6 @@ export async function PUT(
               }
             }
           }
-        },
-        uploadedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true
-          }
         }
       }
     })
@@ -150,7 +131,7 @@ export async function PUT(
     if (error instanceof z.ZodError) {
       return NextResponse.json({ 
         message: 'Dados inválidos',
-        errors: error.errors 
+        errors: error.issues 
       }, { status: 400 })
     }
 
@@ -162,15 +143,16 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = AuthService.verifyToken(request)
-    if (!user) {
+    const userId = request.headers.get('x-user-id')
+    if (!userId) {
       return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
     }
 
-    const imageId = params.id
+    const resolvedParams = await params
+    const imageId = resolvedParams.id
 
     if (!imageId) {
       return NextResponse.json({ message: 'ID da imagem é obrigatório' }, { status: 400 })
@@ -182,7 +164,7 @@ export async function DELETE(
         id: imageId,
         wound: {
           patient: {
-            createdById: session.user.id
+            responsibleId: userId
           }
         }
       }
@@ -194,7 +176,7 @@ export async function DELETE(
 
     // Excluir arquivo físico
     try {
-      const filePath = join(process.cwd(), 'public', existingImage.filePath)
+      const filePath = join(process.cwd(), 'public', existingImage.url)
       if (existsSync(filePath)) {
         await unlink(filePath)
       }

@@ -3,20 +3,15 @@
 import { useState, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { 
   Upload, 
   X, 
-  Image as ImageIcon, 
   Camera, 
   FileImage,
-  Loader2,
-  Eye,
-  Download,
-  Trash2
+  Loader2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
@@ -58,7 +53,7 @@ export function ImageUpload({
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const validateFile = (file: File): string | null => {
+  const validateFile = useCallback((file: File): string | null => {
     if (!acceptedTypes.includes(file.type)) {
       return `Tipo de arquivo não suportado. Use: ${acceptedTypes.join(', ')}`
     }
@@ -68,7 +63,7 @@ export function ImageUpload({
     }
     
     return null
-  }
+  }, [acceptedTypes, maxSize])
 
   const handleFileSelect = useCallback((files: FileList | null) => {
     if (!files) return
@@ -90,12 +85,12 @@ export function ImageUpload({
         preview,
         description: '',
         progress: 0,
-        error
+        error: error || undefined
       })
     }
     
     setUploadingFiles(prev => [...prev, ...newFiles])
-  }, [uploadingFiles.length, maxFiles, maxSize, acceptedTypes])
+  }, [uploadingFiles.length, maxFiles, validateFile])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()

@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Erro ao buscar pacientes:', error)
     return NextResponse.json(
-      { error: 'Erro interno do servidor' },
+      { message: 'Erro interno do servidor' },
       { status: 500 }
     )
   }
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
 
     if (existingPatient) {
       return NextResponse.json(
-        { error: 'Já existe um paciente com este CPF' },
+        { message: 'Já existe um paciente com este CPF' },
         { status: 400 }
       )
     }
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     const userId = request.headers.get('x-user-id')
     if (!userId) {
       return NextResponse.json(
-        { error: 'Usuário não autenticado' },
+        { message: 'Usuário não autenticado' },
         { status: 401 }
       )
     }
@@ -108,10 +108,10 @@ export async function POST(request: NextRequest) {
     const patient = await prisma.patient.create({
       data: {
         ...validatedData,
-        createdById: userId,
+        responsibleId: userId,
       },
       include: {
-        createdBy: {
+        responsible: {
           select: {
             id: true,
             name: true,
@@ -125,14 +125,14 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Dados inválidos', details: error.errors },
+        { message: 'Dados inválidos', details: error.issues },
         { status: 400 }
       )
     }
 
     console.error('Erro ao criar paciente:', error)
     return NextResponse.json(
-      { error: 'Erro interno do servidor' },
+      { message: 'Erro interno do servidor' },
       { status: 500 }
     )
   }

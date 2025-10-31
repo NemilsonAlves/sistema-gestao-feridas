@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { AuthService } from './lib/auth'
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Rotas públicas que não precisam de autenticação
@@ -49,50 +49,49 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Verificar se é uma rota protegida
-  const isProtectedApi = protectedApiRoutes.some(route => pathname.startsWith(route))
-  const isProtectedDashboard = protectedDashboardRoutes.some(route => pathname.startsWith(route))
-  const isSpecialAuthRoute = specialAuthRoutes.some(route => pathname.startsWith(route))
+  // Verificar se é uma rota especial de autenticação
+  if (specialAuthRoutes.some(route => pathname.startsWith(route))) {
+    return NextResponse.next()
+  }
 
-  if (isProtectedApi || isProtectedDashboard || isSpecialAuthRoute) {
-    const token = request.cookies.get('auth-token')?.value || 
-                  request.headers.get('authorization')?.replace('Bearer ', '')
-
-    if (!token) {
-      if (isProtectedApi || isSpecialAuthRoute) {
-        return NextResponse.json(
-          { error: 'Token de acesso requerido' },
-          { status: 401 }
-        )
-      } else {
-        return NextResponse.redirect(new URL('/login', request.url))
-      }
+  // Para rotas protegidas da API, verificar autenticação via header
+  if (protectedApiRoutes.some(route => pathname.startsWith(route))) {
+    const userId = request.headers.get('x-user-id')
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Token de autenticação necessário' },
+        { status: 401 }
+      )
     }
 
-    const payload = AuthService.verifyToken(token)
-    if (!payload) {
-      if (isProtectedApi || isSpecialAuthRoute) {
-        return NextResponse.json(
-          { error: 'Token inválido ou expirado' },
-          { status: 401 }
-        )
-      } else {
-        return NextResponse.redirect(new URL('/login', request.url))
-      }
-    }
-
-    // Adicionar informações do usuário aos headers para uso nas rotas da API
+    // Adicionar o userId ao header para as rotas da API
     const requestHeaders = new Headers(request.headers)
-    requestHeaders.set('x-user-id', payload.userId)
-    requestHeaders.set('x-user-email', payload.email)
-    requestHeaders.set('x-user-role', payload.role)
-    requestHeaders.set('x-user-name', payload.name)
+    requestHeaders.set('x-user-id', userId)
 
     return NextResponse.next({
       request: {
         headers: requestHeaders,
       },
     })
+  }
+
+  // Para rotas do dashboard, verificar autenticação via cookie
+  if (protectedDashboardRoutes.some(route => pathname.startsWith(route))) {
+    const token = request.cookies.get('auth-token')?.value
+
+    if (!token) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+
+    try {
+      const user = AuthService.verifyToken(token)
+      if (!user) {
+        return NextResponse.redirect(new URL('/login', request.url))
+      }
+    } catch {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
   }
 
   return NextResponse.next()
@@ -102,10 +101,10 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
+     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public folder
      */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],

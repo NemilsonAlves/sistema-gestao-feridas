@@ -59,10 +59,11 @@ export default function RegisterPage() {
   }
 
   const roleOptions = [
-    { value: UserRole.DOCTOR, label: 'Médico' },
-    { value: UserRole.NURSE, label: 'Enfermeiro(a)' },
-    { value: UserRole.PHYSIOTHERAPIST, label: 'Fisioterapeuta' },
-    { value: UserRole.NUTRITIONIST, label: 'Nutricionista' },
+    { value: UserRole.MEDICO, label: 'Médico' },
+    { value: UserRole.ENFERMEIRO, label: 'Enfermeiro(a)' },
+    { value: UserRole.FISIOTERAPEUTA, label: 'Fisioterapeuta' },
+    { value: UserRole.NUTRICIONISTA, label: 'Nutricionista' },
+    { value: UserRole.APOIO, label: 'Apoio' },
   ]
 
   return (
@@ -133,7 +134,7 @@ export default function RegisterPage() {
               </Select>
             </div>
 
-            {(formData.role === UserRole.DOCTOR || formData.role === UserRole.NURSE) && (
+            {(formData.role === UserRole.MEDICO || formData.role === UserRole.ENFERMEIRO) && (
               <>
                 <div className="space-y-2">
                   <Label htmlFor="specialty">Especialidade</Label>

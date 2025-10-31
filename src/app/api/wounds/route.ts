@@ -6,37 +6,22 @@ import { prisma } from '@/lib/prisma'
 const createWoundSchema = z.object({
   patientId: z.string().min(1, 'ID do paciente é obrigatório'),
   location: z.string().min(1, 'Localização da ferida é obrigatória'),
-  type: z.enum(['PRESSURE_ULCER', 'DIABETIC_ULCER', 'VENOUS_ULCER', 'ARTERIAL_ULCER', 'SURGICAL', 'TRAUMATIC', 'OTHER'], {
-    errorMap: () => ({ message: 'Tipo de ferida inválido' })
-  }),
-  stage: z.enum(['STAGE_1', 'STAGE_2', 'STAGE_3', 'STAGE_4', 'UNSTAGEABLE', 'SUSPECTED_DTI'], {
-    errorMap: () => ({ message: 'Estágio da ferida inválido' })
-  }).optional(),
+  anatomicalRegion: z.string().min(1, 'Região anatômica é obrigatória'),
+  type: z.enum(['ULCERA_PRESSAO', 'ULCERA_DIABETICA', 'FERIDA_CIRURGICA', 'QUEIMADURA', 'LESAO_FRICCAO', 'OUTRAS']),
+  stage: z.enum(['ESTAGIO_I', 'ESTAGIO_II', 'ESTAGIO_III', 'ESTAGIO_IV']).optional(),
   length: z.number().positive('Comprimento deve ser positivo').optional(),
   width: z.number().positive('Largura deve ser positiva').optional(),
   depth: z.number().positive('Profundidade deve ser positiva').optional(),
   area: z.number().positive('Área deve ser positiva').optional(),
-  tissueType: z.enum(['GRANULATION', 'EPITHELIAL', 'SLOUGH', 'NECROTIC', 'MIXED'], {
-    errorMap: () => ({ message: 'Tipo de tecido inválido' })
-  }).optional(),
-  exudate: z.enum(['NONE', 'MINIMAL', 'MODERATE', 'HEAVY'], {
-    errorMap: () => ({ message: 'Quantidade de exsudato inválida' })
-  }).optional(),
-  exudateType: z.enum(['SEROUS', 'SANGUINEOUS', 'SEROSANGUINEOUS', 'PURULENT'], {
-    errorMap: () => ({ message: 'Tipo de exsudato inválido' })
-  }).optional(),
-  odor: z.enum(['NONE', 'MILD', 'MODERATE', 'STRONG'], {
-    errorMap: () => ({ message: 'Intensidade do odor inválida' })
-  }).optional(),
+  tissueType: z.enum(['GRANULACAO', 'NECROSE', 'FIBRINA', 'EPITELIZACAO']).optional(),
+  exudate: z.enum(['NONE', 'MINIMAL', 'MODERATE', 'HEAVY']).optional(),
+  exudateType: z.enum(['SEROUS', 'SANGUINEOUS', 'SEROSANGUINEOUS', 'PURULENT']).optional(),
+  odor: z.enum(['NONE', 'MILD', 'MODERATE', 'STRONG']).optional(),
   pain: z.number().min(0).max(10, 'Dor deve estar entre 0 e 10').optional(),
   edema: z.boolean().optional(),
   infection: z.boolean().optional(),
-  temperature: z.enum(['NORMAL', 'WARM', 'HOT', 'COOL'], {
-    errorMap: () => ({ message: 'Temperatura inválida' })
-  }).optional(),
-  periwoundSkin: z.enum(['INTACT', 'MACERATED', 'EXCORIATED', 'INDURATED', 'ERYTHEMATOUS'], {
-    errorMap: () => ({ message: 'Condição da pele perilesional inválida' })
-  }).optional(),
+  temperature: z.enum(['NORMAL', 'WARM', 'HOT', 'COOL']).optional(),
+  periwoundSkin: z.enum(['INTACT', 'MACERATED', 'EXCORIATED', 'INDURATED', 'ERYTHEMATOUS']).optional(),
   description: z.string().optional(),
   riskFactors: z.string().optional(),
   previousTreatments: z.string().optional(),
@@ -91,14 +76,6 @@ export async function GET(request: NextRequest) {
               id: true,
               name: true,
               cpf: true,
-              isActive: true,
-            }
-          },
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-              role: true,
             }
           },
           _count: {
@@ -123,10 +100,10 @@ export async function GET(request: NextRequest) {
 
     const statistics = {
       total,
-      active: stats.find(s => s.status === 'ACTIVE')?._count.id || 0,
-      healing: stats.find(s => s.status === 'HEALING')?._count.id || 0,
-      healed: stats.find(s => s.status === 'HEALED')?._count.id || 0,
-      infected: stats.find(s => s.status === 'INFECTED')?._count.id || 0,
+      active: stats.find(s => s.status === 'ESTAVEL')?._count.id || 0,
+      healing: stats.find(s => s.status === 'CICATRIZANDO')?._count.id || 0,
+      deteriorating: stats.find(s => s.status === 'DETERIORANDO')?._count.id || 0,
+      infected: stats.find(s => s.status === 'INFECTADA')?._count.id || 0,
     }
 
     return NextResponse.json({
@@ -183,8 +160,7 @@ export async function POST(request: NextRequest) {
       data: {
         ...validatedData,
         area: calculatedArea,
-        status: 'ACTIVE', // Status inicial sempre ativo
-        createdById: userId,
+        status: 'ESTAVEL', // Status inicial sempre estável
       },
       include: {
         patient: {
@@ -192,13 +168,6 @@ export async function POST(request: NextRequest) {
             id: true,
             name: true,
             cpf: true,
-          }
-        },
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            role: true,
           }
         }
       }
@@ -211,7 +180,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           message: 'Dados inválidos',
-          errors: error.errors.map(err => ({
+          errors: error.issues.map(err => ({
             field: err.path.join('.'),
             message: err.message
           }))

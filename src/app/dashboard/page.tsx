@@ -20,22 +20,26 @@ export default function DashboardPage() {
 
   const getRoleLabel = (role: UserRole) => {
     const roleLabels = {
-      [UserRole.DOCTOR]: 'Médico',
-      [UserRole.NURSE]: 'Enfermeiro(a)',
-      [UserRole.PHYSIOTHERAPIST]: 'Fisioterapeuta',
-      [UserRole.NUTRITIONIST]: 'Nutricionista',
+      [UserRole.MEDICO]: 'Médico',
+      [UserRole.ENFERMEIRO]: 'Enfermeiro(a)',
+      [UserRole.FISIOTERAPEUTA]: 'Fisioterapeuta',
+      [UserRole.NUTRICIONISTA]: 'Nutricionista',
       [UserRole.ADMIN]: 'Administrador',
+      [UserRole.APOIO]: 'Apoio',
+      [UserRole.PACIENTE]: 'Paciente',
     }
     return roleLabels[role] || role
   }
 
   const getRoleColor = (role: UserRole) => {
     const roleColors = {
-      [UserRole.DOCTOR]: 'bg-blue-100 text-blue-800',
-      [UserRole.NURSE]: 'bg-green-100 text-green-800',
-      [UserRole.PHYSIOTHERAPIST]: 'bg-purple-100 text-purple-800',
-      [UserRole.NUTRITIONIST]: 'bg-orange-100 text-orange-800',
+      [UserRole.MEDICO]: 'bg-blue-100 text-blue-800',
+      [UserRole.ENFERMEIRO]: 'bg-green-100 text-green-800',
+      [UserRole.FISIOTERAPEUTA]: 'bg-purple-100 text-purple-800',
+      [UserRole.NUTRICIONISTA]: 'bg-orange-100 text-orange-800',
       [UserRole.ADMIN]: 'bg-red-100 text-red-800',
+      [UserRole.APOIO]: 'bg-yellow-100 text-yellow-800',
+      [UserRole.PACIENTE]: 'bg-gray-100 text-gray-800',
     }
     return roleColors[role] || 'bg-gray-100 text-gray-800'
   }
@@ -120,8 +124,8 @@ export default function DashboardPage() {
                   <Badge className={getRoleColor(user.role)}>
                     {getRoleLabel(user.role)}
                   </Badge>
-                  {user.specialty && (
-                    <span className="text-xs text-gray-500">{user.specialty}</span>
+                  {user.especialidade && (
+                    <span className="text-xs text-gray-500">{user.especialidade}</span>
                   )}
                 </div>
               </div>

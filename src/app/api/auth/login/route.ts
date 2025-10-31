@@ -31,14 +31,14 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json(
-        { error: 'Credenciais inválidas' },
+        { message: 'Credenciais inválidas' },
         { status: 401 }
       )
     }
 
     if (!user.isActive) {
       return NextResponse.json(
-        { error: 'Conta desativada. Entre em contato com o administrador.' },
+        { message: 'Conta desativada. Entre em contato com o administrador.' },
         { status: 401 }
       )
     }
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     const isPasswordValid = await AuthService.comparePassword(password, user.password)
     if (!isPasswordValid) {
       return NextResponse.json(
-        { error: 'Credenciais inválidas' },
+        { message: 'Credenciais inválidas' },
         { status: 401 }
       )
     }
@@ -62,12 +62,6 @@ export async function POST(request: NextRequest) {
 
     const accessToken = AuthService.generateToken(tokenPayload)
     const refreshToken = AuthService.generateRefreshToken(user.id)
-
-    // Atualizar último login
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLogin: new Date() },
-    })
 
     // Configurar cookies
     const response = NextResponse.json({
@@ -102,13 +96,13 @@ export async function POST(request: NextRequest) {
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Dados inválidos', details: error.errors },
+        { message: 'Dados inválidos', details: error.issues },
         { status: 400 }
       )
     }
 
     return NextResponse.json(
-      { error: 'Erro interno do servidor' },
+      { message: 'Erro interno do servidor' },
       { status: 500 }
     )
   }

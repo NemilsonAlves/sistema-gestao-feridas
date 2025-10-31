@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
+import { useDebounce } from '@/hooks/useDebounce'
 
 interface Patient {
   id: string
@@ -48,6 +49,9 @@ export default function PatientsPage() {
   })
   const router = useRouter()
 
+  // Debounce search to reduce API calls
+  const debouncedSearch = useDebounce(search, 300)
+
   const fetchPatients = async (page = 1, searchTerm = '') => {
     try {
       setLoading(true)
@@ -74,13 +78,12 @@ export default function PatientsPage() {
   }
 
   useEffect(() => {
-    fetchPatients(currentPage, search)
-  }, [currentPage])
+    fetchPatients(currentPage, debouncedSearch)
+  }, [currentPage, debouncedSearch])
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSearch = (value: string) => {
+    setSearch(value)
     setCurrentPage(1)
-    fetchPatients(1, search)
   }
 
   const getGenderLabel = (gender: string) => {

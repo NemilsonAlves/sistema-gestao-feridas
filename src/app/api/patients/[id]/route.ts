@@ -20,19 +20,19 @@ const updatePatientSchema = z.object({
   comorbidities: z.string().optional(),
   medications: z.string().optional(),
   observations: z.string().optional(),
-  isActive: z.boolean().optional(),
 })
 
 // GET /api/patients/[id] - Buscar paciente por ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params
     const patient = await prisma.patient.findUnique({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
       include: {
-        createdBy: {
+        responsible: {
           select: {
             id: true,
             name: true,
@@ -58,7 +58,7 @@ export async function GET(
 
     if (!patient) {
       return NextResponse.json(
-        { error: 'Paciente não encontrado' },
+        { message: 'Paciente não encontrado' },
         { status: 404 }
       )
     }
@@ -67,7 +67,7 @@ export async function GET(
   } catch (error) {
     console.error('Erro ao buscar paciente:', error)
     return NextResponse.json(
-      { error: 'Erro interno do servidor' },
+      { message: 'Erro interno do servidor' },
       { status: 500 }
     )
   }
@@ -76,20 +76,23 @@ export async function GET(
 // PUT /api/patients/[id] - Atualizar paciente
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params
     const body = await request.json()
+    
+    // Validar dados
     const validatedData = updatePatientSchema.parse(body)
-
+    
     // Verificar se o paciente existe
     const existingPatient = await prisma.patient.findUnique({
-      where: { id: params.id },
+      where: { id: resolvedParams.id }
     })
 
     if (!existingPatient) {
       return NextResponse.json(
-        { error: 'Paciente não encontrado' },
+        { message: 'Paciente não encontrado' },
         { status: 404 }
       )
     }
@@ -102,20 +105,20 @@ export async function PUT(
 
       if (cpfExists) {
         return NextResponse.json(
-          { error: 'Já existe um paciente com este CPF' },
+          { message: 'Já existe um paciente com este CPF' },
           { status: 400 }
         )
       }
     }
 
     const patient = await prisma.patient.update({
-      where: { id: params.id },
-      data: {
-        ...validatedData,
-        updatedAt: new Date(),
-      },
+       where: { id: resolvedParams.id },
+       data: {
+         ...validatedData,
+         updatedAt: new Date(),
+       },
       include: {
-        createdBy: {
+        responsible: {
           select: {
             id: true,
             name: true,
@@ -129,14 +132,14 @@ export async function PUT(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Dados inválidos', details: error.errors },
+        { message: 'Dados inválidos', details: error.issues },
         { status: 400 }
       )
     }
 
     console.error('Erro ao atualizar paciente:', error)
     return NextResponse.json(
-      { error: 'Erro interno do servidor' },
+      { message: 'Erro interno do servidor' },
       { status: 500 }
     )
   }
@@ -145,12 +148,14 @@ export async function PUT(
 // DELETE /api/patients/[id] - Desativar paciente (soft delete)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params
+    
     // Verificar se o paciente existe
     const existingPatient = await prisma.patient.findUnique({
-      where: { id: params.id },
+      where: { id: resolvedParams.id }
     })
 
     if (!existingPatient) {
@@ -161,13 +166,13 @@ export async function DELETE(
     }
 
     // Soft delete - apenas desativar o paciente
-    const patient = await prisma.patient.update({
-      where: { id: params.id },
-      data: {
-        isActive: false,
-        updatedAt: new Date(),
-      },
-    })
+     const patient = await prisma.patient.update({
+       where: { id: resolvedParams.id },
+       data: {
+         status: 'ALTA',
+         updatedAt: new Date(),
+       },
+     })
 
     return NextResponse.json({
       message: 'Paciente desativado com sucesso',

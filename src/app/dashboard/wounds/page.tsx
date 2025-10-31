@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
+import { useDebounce } from '@/hooks/useDebounce'
 
 interface Wound {
   id: string
@@ -75,6 +76,9 @@ export default function WoundsPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
 
+  // Debounce search to reduce API calls
+  const debouncedSearch = useDebounce(search, 300)
+
   const fetchWounds = async () => {
     try {
       setLoading(true)
@@ -83,7 +87,7 @@ export default function WoundsPage() {
         limit: pagination.limit.toString(),
       })
 
-      if (search) params.append('search', search)
+      if (debouncedSearch) params.append('search', debouncedSearch)
       if (statusFilter) params.append('status', statusFilter)
       if (typeFilter) params.append('type', typeFilter)
 
@@ -106,7 +110,7 @@ export default function WoundsPage() {
 
   useEffect(() => {
     fetchWounds()
-  }, [pagination.page, search, statusFilter, typeFilter])
+  }, [pagination.page, debouncedSearch, statusFilter, typeFilter])
 
   const handleSearch = (value: string) => {
     setSearch(value)

@@ -488,7 +488,7 @@ export default function WoundDetailsPage() {
                   <Link href={`/dashboard/wounds/${wound.id}/images`}>
                     <Button className="w-full justify-start" variant="outline">
                       <Camera className="h-4 w-4 mr-2" />
-                      {wound._count?.images > 0 ? 'Ver Todas as Imagens' : 'Adicionar Primeira Imagem'}
+                      {(wound._count?.images || 0) > 0 ? 'Ver Todas as Imagens' : 'Adicionar Primeira Imagem'}
                     </Button>
                   </Link>
                 </div>

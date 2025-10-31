@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import { LazyImage } from '@/components/ui/lazy-image'
 import { 
   Eye, 
   Download, 
@@ -20,7 +21,6 @@ import {
   FileImage,
   Loader2,
   Search,
-  Filter,
   Grid3X3,
   List
 } from 'lucide-react'
@@ -238,7 +238,7 @@ export function ImageGallery({ woundId, className, showUpload = false, onImageUp
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
-  const loadImages = async () => {
+  const loadImages = useCallback(async () => {
     try {
       const response = await fetch(`/api/images?woundId=${woundId}`)
       if (response.ok) {
@@ -250,18 +250,18 @@ export function ImageGallery({ woundId, className, showUpload = false, onImageUp
     } finally {
       setLoading(false)
     }
-  }
+  }, [woundId])
 
   useEffect(() => {
     loadImages()
-  }, [woundId])
+  }, [loadImages])
 
-  const handleImageClick = (image: WoundImage) => {
+  const handleImageClick = useCallback((image: WoundImage) => {
     setSelectedImage(image)
     setIsModalOpen(true)
-  }
+  }, [])
 
-  const handleImageUpdate = async (id: string, description: string) => {
+  const handleImageUpdate = useCallback(async (id: string, description: string) => {
     try {
       const response = await fetch(`/api/images/${id}`, {
         method: 'PUT',
@@ -280,9 +280,9 @@ export function ImageGallery({ woundId, className, showUpload = false, onImageUp
     } catch (error) {
       console.error('Erro ao atualizar imagem:', error)
     }
-  }
+  }, [onImageUpdate])
 
-  const handleImageDelete = async (id: string) => {
+  const handleImageDelete = useCallback(async (id: string) => {
     try {
       const response = await fetch(`/api/images/${id}`, {
         method: 'DELETE',
@@ -295,11 +295,13 @@ export function ImageGallery({ woundId, className, showUpload = false, onImageUp
     } catch (error) {
       console.error('Erro ao excluir imagem:', error)
     }
-  }
+  }, [onImageUpdate])
 
-  const filteredImages = images.filter(image =>
-    image.filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (image.description && image.description.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredImages = useMemo(() => 
+    images.filter(image =>
+      image.filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (image.description && image.description.toLowerCase().includes(searchTerm.toLowerCase()))
+    ), [images, searchTerm]
   )
 
   if (loading) {
@@ -379,12 +381,13 @@ export function ImageGallery({ woundId, className, showUpload = false, onImageUp
                   <div className={cn(
                     viewMode === 'grid' ? 'aspect-square' : 'w-32 h-24 flex-shrink-0'
                   )}>
-                    <Image
+                    <LazyImage
                       src={image.url}
                       alt={image.filename}
                       width={viewMode === 'grid' ? 300 : 128}
                       height={viewMode === 'grid' ? 300 : 96}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full rounded-t-lg"
+                      onClick={() => handleImageClick(image)}
                     />
                   </div>
                   

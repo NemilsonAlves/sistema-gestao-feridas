@@ -9,8 +9,8 @@ const registerSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
   role: z.nativeEnum(UserRole),
-  specialty: z.string().optional(),
-  license: z.string().optional(),
+  especialidade: z.string().optional(),
+  registroProfissional: z.string().optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     
     // Validar dados de entrada
     const validatedData = registerSchema.parse(body)
-    const { name, email, password, role, specialty, license } = validatedData
+    const { name, email, password, role, especialidade, registroProfissional } = validatedData
 
     // Verificar se o email já existe
     const existingUser = await prisma.user.findUnique({
@@ -43,8 +43,8 @@ export async function POST(request: NextRequest) {
         email,
         password: hashedPassword,
         role,
-        specialty,
-        license,
+        especialidade,
+        registroProfissional,
         isActive: true,
       },
       select: {
@@ -52,8 +52,8 @@ export async function POST(request: NextRequest) {
         name: true,
         email: true,
         role: true,
-        specialty: true,
-        license: true,
+        especialidade: true,
+        registroProfissional: true,
         createdAt: true,
       },
     })
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Dados inválidos', details: error.errors },
+        { error: 'Dados inválidos', details: error.issues },
         { status: 400 }
       )
     }

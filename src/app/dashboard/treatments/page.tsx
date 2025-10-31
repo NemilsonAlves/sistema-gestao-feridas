@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
+import { useDebounce } from '@/hooks/useDebounce'
 import { 
   Search, 
   Plus, 
@@ -106,9 +107,12 @@ export default function TreatmentsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
 
+  // Debounce search to reduce API calls
+  const debouncedSearchTerm = useDebounce(searchTerm, 300)
+
   useEffect(() => {
     fetchTreatments()
-  }, [currentPage, searchTerm, typeFilter, statusFilter])
+  }, [currentPage, debouncedSearchTerm, typeFilter, statusFilter])
 
   const fetchTreatments = async () => {
     try {
@@ -119,7 +123,7 @@ export default function TreatmentsPage() {
         limit: '10'
       })
 
-      if (searchTerm) params.append('search', searchTerm)
+      if (debouncedSearchTerm) params.append('search', debouncedSearchTerm)
       if (typeFilter) params.append('type', typeFilter)
       if (statusFilter) params.append('status', statusFilter)
 

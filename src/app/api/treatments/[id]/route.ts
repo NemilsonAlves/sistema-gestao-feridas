@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { AuthService } from '@/lib/auth'
+import { AuthService, PERMISSIONS, hasPermission } from '@/lib/auth'
+import { UserRole } from '@prisma/client'
 import { z } from 'zod'
 
 // Schema de validação para atualização de tratamento
@@ -14,25 +15,34 @@ const updateTreatmentSchema = z.object({
   nextScheduled: z.string().datetime().optional(),
   performedBy: z.string().optional(),
   observations: z.string().optional(),
-  status: z.enum(['SCHEDULED', 'COMPLETED', 'CANCELLED', 'OVERDUE']).optional(),
-  completedAt: z.string().datetime().optional(),
 })
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verificar autenticação
-    const user = await AuthService.verifyToken(request)
-    if (!user) {
+    const userId = request.headers.get('x-user-id')
+    const userRole = request.headers.get('x-user-role') as UserRole
+    
+    if (!userId || !userRole) {
       return NextResponse.json(
         { message: 'Token inválido ou expirado' },
         { status: 401 }
       )
     }
 
-    const treatmentId = params.id
+    // Verificar permissão
+    if (!hasPermission(userRole, PERMISSIONS.TREATMENT_READ)) {
+      return NextResponse.json(
+        { message: 'Acesso negado' },
+        { status: 403 }
+      )
+    }
+
+    const resolvedParams = await params
+    const treatmentId = resolvedParams.id
 
     // Validar UUID
     if (!z.string().uuid().safeParse(treatmentId).success) {
@@ -57,7 +67,7 @@ export async function GET(
             }
           }
         },
-        createdBy: {
+        user: {
           select: {
             id: true,
             name: true,
@@ -87,19 +97,30 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verificar autenticação
-    const user = await AuthService.verifyToken(request)
-    if (!user) {
+    const userId = request.headers.get('x-user-id')
+    const userRole = request.headers.get('x-user-role') as UserRole
+    
+    if (!userId || !userRole) {
       return NextResponse.json(
         { message: 'Token inválido ou expirado' },
         { status: 401 }
       )
     }
 
-    const treatmentId = params.id
+    // Verificar permissão
+    if (!hasPermission(userRole, PERMISSIONS.TREATMENT_UPDATE)) {
+      return NextResponse.json(
+        { message: 'Acesso negado' },
+        { status: 403 }
+      )
+    }
+
+    const resolvedParams = await params
+    const treatmentId = resolvedParams.id
 
     // Validar UUID
     if (!z.string().uuid().safeParse(treatmentId).success) {
@@ -128,33 +149,16 @@ export async function PUT(
     // Preparar dados para atualização
     const updateData: any = {}
 
-    if (data.type !== undefined) updateData.type = data.type
-    if (data.description !== undefined) updateData.description = data.description
-    if (data.products !== undefined) updateData.products = data.products
+    if (data.type !== undefined) updateData.dressing = data.type
+    if (data.description !== undefined) updateData.protocol = data.description
+    if (data.products !== undefined) updateData.materials = data.products.join(', ')
     if (data.frequency !== undefined) updateData.frequency = data.frequency
-    if (data.duration !== undefined) updateData.duration = data.duration
-    if (data.instructions !== undefined) updateData.instructions = data.instructions
-    if (data.performedBy !== undefined) updateData.performedBy = data.performedBy
+    if (data.instructions !== undefined) updateData.technique = data.instructions
     if (data.observations !== undefined) updateData.observations = data.observations
-    if (data.status !== undefined) updateData.status = data.status
 
     // Tratar datas
     if (data.nextScheduled !== undefined) {
-      updateData.nextScheduled = data.nextScheduled ? new Date(data.nextScheduled) : null
-    }
-
-    if (data.completedAt !== undefined) {
-      updateData.completedAt = data.completedAt ? new Date(data.completedAt) : null
-    }
-
-    // Se o status está sendo alterado para COMPLETED, definir completedAt se não fornecido
-    if (data.status === 'COMPLETED' && !data.completedAt) {
-      updateData.completedAt = new Date()
-    }
-
-    // Se o status não é mais COMPLETED, remover completedAt
-    if (data.status && data.status !== 'COMPLETED') {
-      updateData.completedAt = null
+      updateData.nextChangeDate = data.nextScheduled ? new Date(data.nextScheduled) : null
     }
 
     // Atualizar tratamento
@@ -173,7 +177,7 @@ export async function PUT(
             }
           }
         },
-        createdBy: {
+        user: {
           select: {
             id: true,
             name: true,
@@ -190,7 +194,7 @@ export async function PUT(
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { message: 'Dados inválidos', errors: error.errors },
+        { message: 'Dados inválidos', errors: error.issues },
         { status: 400 }
       )
     }
@@ -204,19 +208,30 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verificar autenticação
-    const user = await AuthService.verifyToken(request)
-    if (!user) {
+    const userId = request.headers.get('x-user-id')
+    const userRole = request.headers.get('x-user-role') as UserRole
+    
+    if (!userId || !userRole) {
       return NextResponse.json(
         { message: 'Token inválido ou expirado' },
         { status: 401 }
       )
     }
 
-    const treatmentId = params.id
+    // Verificar permissão
+    if (!hasPermission(userRole, PERMISSIONS.TREATMENT_DELETE)) {
+      return NextResponse.json(
+        { message: 'Acesso negado' },
+        { status: 403 }
+      )
+    }
+
+    const resolvedParams = await params
+    const treatmentId = resolvedParams.id
 
     // Validar UUID
     if (!z.string().uuid().safeParse(treatmentId).success) {
@@ -236,13 +251,6 @@ export async function DELETE(
         { message: 'Tratamento não encontrado' },
         { status: 404 }
       )
-    }
-
-    // Verificar se o tratamento pode ser excluído
-    // Tratamentos concluídos podem ter restrições de exclusão dependendo das regras de negócio
-    if (existingTreatment.status === 'COMPLETED') {
-      // Por enquanto, permitir exclusão, mas em produção pode ser necessário soft delete
-      // ou restrições adicionais
     }
 
     // Excluir tratamento

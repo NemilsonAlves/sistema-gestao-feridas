@@ -8,24 +8,20 @@ import { existsSync } from 'fs'
 
 const uploadSchema = z.object({
   woundId: z.string().uuid(),
-  description: z.string().optional(),
-  capturedAt: z.string().optional(),
-  isBeforeAfter: z.boolean().optional().default(false),
-  beforeAfterType: z.enum(['BEFORE', 'AFTER']).optional()
+  description: z.string().optional()
 })
 
 const querySchema = z.object({
   woundId: z.string().uuid().optional(),
   patientId: z.string().uuid().optional(),
-  isBeforeAfter: z.string().optional(),
   page: z.string().optional(),
   limit: z.string().optional()
 })
 
 export async function POST(request: NextRequest) {
   try {
-    const user = AuthService.verifyToken(request)
-    if (!user) {
+    const userId = request.headers.get('x-user-id')
+    if (!userId) {
       return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
     }
 
@@ -55,7 +51,7 @@ export async function POST(request: NextRequest) {
       where: {
         id: validatedData.woundId,
         patient: {
-          createdById: session.user.id
+          responsibleId: userId
         }
       },
       include: {
@@ -105,15 +101,9 @@ export async function POST(request: NextRequest) {
     const image = await prisma.woundImage.create({
       data: {
         woundId: validatedData.woundId,
-        fileName,
-        filePath: publicPath,
-        fileSize: file.size,
-        mimeType: file.type,
-        description: validatedData.description,
-        capturedAt: validatedData.capturedAt ? new Date(validatedData.capturedAt) : new Date(),
-        isBeforeAfter: validatedData.isBeforeAfter,
-        beforeAfterType: validatedData.beforeAfterType,
-        uploadedById: session.user.id
+        filename: fileName,
+        url: publicPath,
+        description: validatedData.description
       },
       include: {
         wound: {
@@ -126,14 +116,6 @@ export async function POST(request: NextRequest) {
               }
             }
           }
-        },
-        uploadedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true
-          }
         }
       }
     })
@@ -145,7 +127,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ 
         message: 'Dados inválidos',
-        errors: error.errors 
+        errors: error.issues 
       }, { status: 400 })
     }
 
@@ -157,8 +139,8 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const user = AuthService.verifyToken(request)
-    if (!user) {
+    const userId = request.headers.get('x-user-id')
+    if (!userId) {
       return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
     }
 
@@ -179,7 +161,7 @@ export async function GET(request: NextRequest) {
     const where: any = {
       wound: {
         patient: {
-          createdById: session.user.id
+          responsibleId: userId
         }
       }
     }
@@ -190,10 +172,6 @@ export async function GET(request: NextRequest) {
 
     if (query.patientId) {
       where.wound.patient.id = query.patientId
-    }
-
-    if (query.isBeforeAfter) {
-      where.isBeforeAfter = query.isBeforeAfter === 'true'
     }
 
     // Buscar imagens
@@ -211,18 +189,10 @@ export async function GET(request: NextRequest) {
                 }
               }
             }
-          },
-          uploadedBy: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true
-            }
           }
         },
         orderBy: {
-          capturedAt: 'desc'
+          createdAt: 'desc'
         },
         skip,
         take: limit
@@ -231,24 +201,9 @@ export async function GET(request: NextRequest) {
     ])
 
     // Calcular estatísticas
-    const statistics = await prisma.woundImage.groupBy({
-      by: ['isBeforeAfter'],
-      where: {
-        wound: {
-          patient: {
-            createdById: session.user.id
-          }
-        }
-      },
-      _count: {
-        id: true
-      }
-    })
-
     const stats = {
       total,
-      beforeAfter: statistics.find(s => s.isBeforeAfter)?._count.id || 0,
-      regular: statistics.find(s => !s.isBeforeAfter)?._count.id || 0
+      images: images.length
     }
 
     return NextResponse.json({
@@ -267,7 +222,7 @@ export async function GET(request: NextRequest) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ 
         message: 'Parâmetros inválidos',
-        errors: error.errors 
+        errors: error.issues 
       }, { status: 400 })
     }
 
