@@ -19,7 +19,7 @@ const updateTreatmentSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verificar autenticação
@@ -41,9 +41,8 @@ export async function GET(
       )
     }
 
-    const resolvedParams = await params
-    const treatmentId = resolvedParams.id
-
+    const params = await context.params
+    const treatmentId = params.id
     // Validar UUID
     if (!z.string().uuid().safeParse(treatmentId).success) {
       return NextResponse.json(
@@ -97,7 +96,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verificar autenticação
@@ -119,9 +118,8 @@ export async function PUT(
       )
     }
 
-    const resolvedParams = await params
-    const treatmentId = resolvedParams.id
-
+    const params = await context.params
+    const treatmentId = params.id
     // Validar UUID
     if (!z.string().uuid().safeParse(treatmentId).success) {
       return NextResponse.json(
@@ -208,7 +206,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verificar autenticação
@@ -230,9 +228,8 @@ export async function DELETE(
       )
     }
 
-    const resolvedParams = await params
-    const treatmentId = resolvedParams.id
-
+    const params = await context.params
+    const treatmentId = params.id
     // Validar UUID
     if (!z.string().uuid().safeParse(treatmentId).success) {
       return NextResponse.json(

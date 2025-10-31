@@ -25,12 +25,13 @@ const updatePatientSchema = z.object({
 // GET /api/patients/[id] - Buscar paciente por ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const resolvedParams = await params
+    const params = await context.params
+    const patientId = params.id
     const patient = await prisma.patient.findUnique({
-      where: { id: resolvedParams.id },
+      where: { id: patientId },
       include: {
         responsible: {
           select: {
@@ -76,10 +77,11 @@ export async function GET(
 // PUT /api/patients/[id] - Atualizar paciente
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const resolvedParams = await params
+    const params = await context.params
+    const patientId = params.id
     const body = await request.json()
     
     // Validar dados
@@ -87,7 +89,7 @@ export async function PUT(
     
     // Verificar se o paciente existe
     const existingPatient = await prisma.patient.findUnique({
-      where: { id: resolvedParams.id }
+      where: { id: patientId }
     })
 
     if (!existingPatient) {
@@ -112,7 +114,7 @@ export async function PUT(
     }
 
     const patient = await prisma.patient.update({
-       where: { id: resolvedParams.id },
+        where: { id: patientId },
        data: {
          ...validatedData,
          updatedAt: new Date(),
@@ -148,14 +150,15 @@ export async function PUT(
 // DELETE /api/patients/[id] - Desativar paciente (soft delete)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const resolvedParams = await params
+    const params = await context.params
+    const patientId = params.id
     
     // Verificar se o paciente existe
     const existingPatient = await prisma.patient.findUnique({
-      where: { id: resolvedParams.id }
+      where: { id: patientId }
     })
 
     if (!existingPatient) {
@@ -166,8 +169,8 @@ export async function DELETE(
     }
 
     // Soft delete - apenas desativar o paciente
-     const patient = await prisma.patient.update({
-       where: { id: resolvedParams.id },
+      const patient = await prisma.patient.update({
+        where: { id: patientId },
        data: {
          status: 'ALTA',
          updatedAt: new Date(),

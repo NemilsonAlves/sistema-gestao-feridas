@@ -1,4 +1,5 @@
 {
+  "name": "sistema-gestao-feridas",
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "framework": "nextjs",

@@ -21,8 +21,8 @@ export async function GET(
       return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
     }
 
-    const resolvedParams = await context.params
-    const imageId = resolvedParams.id
+    const params = await context.params
+    const imageId = params.id
 
     if (!imageId) {
       return NextResponse.json({ message: 'ID da imagem é obrigatório' }, { status: 400 })
@@ -76,8 +76,8 @@ export async function PUT(
       return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
     }
 
-    const resolvedParams = await context.params
-    const imageId = resolvedParams.id
+    const params = await context.params
+    const imageId = params.id
 
     if (!imageId) {
       return NextResponse.json({ message: 'ID da imagem é obrigatório' }, { status: 400 })
@@ -151,8 +151,8 @@ export async function DELETE(
       return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
     }
 
-    const resolvedParams = await context.params
-    const imageId = resolvedParams.id
+    const params = await context.params
+    const imageId = params.id
 
     if (!imageId) {
       return NextResponse.json({ message: 'ID da imagem é obrigatório' }, { status: 400 })

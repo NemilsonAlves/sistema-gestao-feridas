@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
+import { AuthService, PERMISSIONS, hasPermission } from '@/lib/auth'
+import { UserRole } from '@prisma/client'
 
 // Schema de validação para atualização de ferida
 const updateWoundSchema = z.object({
@@ -29,12 +31,33 @@ const updateWoundSchema = z.object({
 // GET - Buscar ferida específica
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const resolvedParams = await params
+    // Verificar autenticação
+    const userId = request.headers.get('x-user-id')
+    const userRole = request.headers.get('x-user-role') as UserRole
+    
+    if (!userId || !userRole) {
+      return NextResponse.json(
+        { message: 'Token inválido ou expirado' },
+        { status: 401 }
+      )
+    }
+
+    // Verificar permissão
+    if (!hasPermission(userRole, PERMISSIONS.WOUND_READ)) {
+      return NextResponse.json(
+        { message: 'Acesso negado' },
+        { status: 403 }
+      )
+    }
+
+    const params = await context.params
+    const woundId = params.id
+
     const wound = await prisma.wound.findUnique({
-      where: { id: resolvedParams.id },
+      where: { id: woundId },
       include: {
         patient: {
           select: {
@@ -100,10 +123,31 @@ export async function GET(
 // PUT - Atualizar ferida
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const resolvedParams = await params
+    // Verificar autenticação
+    const userId = request.headers.get('x-user-id')
+    const userRole = request.headers.get('x-user-role') as UserRole
+    
+    if (!userId || !userRole) {
+      return NextResponse.json(
+        { message: 'Token inválido ou expirado' },
+        { status: 401 }
+      )
+    }
+
+    // Verificar permissão
+    if (!hasPermission(userRole, PERMISSIONS.WOUND_UPDATE)) {
+      return NextResponse.json(
+        { message: 'Acesso negado' },
+        { status: 403 }
+      )
+    }
+
+    const params = await context.params
+    const woundId = params.id
+    
     const body = await request.json()
     
     // Validar dados
@@ -111,7 +155,7 @@ export async function PUT(
     
     // Verificar se a ferida existe
     const existingWound = await prisma.wound.findUnique({
-      where: { id: resolvedParams.id }
+      where: { id: woundId }
     })
 
     if (!existingWound) {
@@ -129,7 +173,7 @@ export async function PUT(
 
      // Atualizar ferida
      const wound = await prisma.wound.update({
-       where: { id: resolvedParams.id },
+       where: { id: woundId },
        data: {
          ...validatedData,
          area: calculatedArea,
@@ -173,14 +217,34 @@ export async function PUT(
 // DELETE - Excluir ferida (soft delete)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const resolvedParams = await params
+    // Verificar autenticação
+    const userId = request.headers.get('x-user-id')
+    const userRole = request.headers.get('x-user-role') as UserRole
+    
+    if (!userId || !userRole) {
+      return NextResponse.json(
+        { message: 'Token inválido ou expirado' },
+        { status: 401 }
+      )
+    }
+
+    // Verificar permissão
+    if (!hasPermission(userRole, PERMISSIONS.WOUND_DELETE)) {
+      return NextResponse.json(
+        { message: 'Acesso negado' },
+        { status: 403 }
+      )
+    }
+
+    const params = await context.params
+    const woundId = params.id
     
     // Verificar se a ferida existe
     const existingWound = await prisma.wound.findUnique({
-      where: { id: resolvedParams.id },
+      where: { id: woundId },
       include: {
         treatments: true,
         images: true
@@ -210,7 +274,7 @@ export async function DELETE(
 
      // Excluir ferida (hard delete se não há dependências)
      await prisma.wound.delete({
-       where: { id: resolvedParams.id }
+       where: { id: woundId }
      })
 
      return NextResponse.json(
